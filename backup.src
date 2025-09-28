@@ -1,0 +1,47 @@
+:local date [/system clock get date]
+:local day [:pick $date 8 10]
+:local month [:pick $date 5 7]
+:local year [:pick $date 0 4]
+
+:local months {"01"="January"; "02"="February"; "03"="March"; "04"="April"; "05"="May"; "06"="June";
+                    "07"="July"; "08"="August"; "09"="September"; "10"="October"; "11"="November"; "12"="December"}
+
+:local mm ($months->$month)
+:local formattedDate ($day . "-" . $mm . "-" . $year)
+
+:local myname [/system identity get name]
+:local baseName ($myname . "_" . $formattedDate)
+:local backupName ($baseName . ".backup")
+:local exportName ($baseName . ".rsc")
+
+:local ftpuser "<your_login_ftp>"
+:local ftppass "<your_password_ftp>"
+:local ftpaddr "<your_ip_or_dns_ftp>"
+:local ftppath "<your_folder_ftp>"
+
+:log info "Start Backup $baseName"
+/system backup save name=$backupName password=<your_password>
+:delay 5s
+/export file=$exportName
+
+:do {
+    /tool fetch address=$ftpaddr src-path=$backupName user=$ftpuser password=$ftppass \
+        port=21 upload=yes mode=ftp dst-path=($ftppath . "/" . $backupName)
+} on-error={
+    :log warning "Failed to upload backup file to FTP"
+}
+
+:delay 5s
+
+:do {
+    /tool fetch address=$ftpaddr src-path=$exportName user=$ftpuser password=$ftppass \
+        port=21 upload=yes mode=ftp dst-path=($ftppath . "/" . $exportName)
+} on-error={
+    :log warning "Failed to upload export file to FTP"
+}
+
+:delay 10s
+/file remove [find name=$backupName]
+/file remove [find name=$exportName]
+
+:log info "Backup completed successfully: $baseName"
